@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Agent</title>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client@2/dist/livekit-client.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Outfit:wght@300;400;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a25;
+            --accent-cyan: #00f5ff;
+            --accent-magenta: #ff00aa;
+            --accent-violet: #8b5cf6;
+            --text-primary: #f0f0f5;
+            --text-secondary: #8888aa;
+            --glow-cyan: 0 0 20px rgba(0, 245, 255, 0.4);
+            --glow-magenta: 0 0 20px rgba(255, 0, 170, 0.4);
+        }
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(139, 92, 246, 0.15) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(0, 245, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(ellipse at 50% 50%, rgba(255, 0, 170, 0.05) 0%, transparent 70%);
+            z-index: -1;
+            animation: bgPulse 8s ease-in-out infinite;
+        }
+        
+        @keyframes bgPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        /* Grid pattern overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 50px 50px;
+            z-index: -1;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 500px;
+            padding: 2rem;
+            animation: fadeIn 0.8s ease-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .logo-section {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet), var(--accent-magenta));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.02em;
+            text-shadow: 0 0 40px rgba(139, 92, 246, 0.3);
+        }
+        
+        .subtitle {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+            letter-spacing: 0.1em;
+        }
+        
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 20px;
+            padding: 2.5rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .input-group label {
+            display: block;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        .input-group input {
+            width: 100%;
+            padding: 1rem 1.25rem;
+            background: var(--bg-tertiary);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: var(--glow-cyan), inset 0 0 20px rgba(0, 245, 255, 0.05);
+        }
+        
+        .input-group input::placeholder {
+            color: var(--text-secondary);
+        }
+        
+        .btn {
+            width: 100%;
+            padding: 1.25rem 2rem;
+            border: none;
+            border-radius: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-violet));
+            color: var(--bg-primary);
+            box-shadow: var(--glow-cyan);
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(0, 245, 255, 0.6), 0 10px 40px rgba(139, 92, 246, 0.3);
+        }
+        
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--accent-magenta), #ff4466);
+            color: white;
+            box-shadow: var(--glow-magenta);
+        }
+        
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px rgba(255, 0, 170, 0.6);
+        }
+        
+        .status-section {
+            margin-top: 2rem;
+            text-align: center;
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.75rem 1.5rem;
+            background: var(--bg-tertiary);
+            border-radius: 100px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-dot.disconnected {
+            background: var(--text-secondary);
+            animation: none;
+        }
+        
+        .status-dot.connecting {
+            background: #fbbf24;
+            box-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
+        }
+        
+        .status-dot.connected {
+            background: #22c55e;
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.1); }
+        }
+        
+        /* Audio visualization */
+        .visualizer {
+            display: none;
+            justify-content: center;
+            align-items: flex-end;
+            gap: 4px;
+            height: 60px;
+            margin: 2rem 0;
+        }
+        
+        .visualizer.active {
+            display: flex;
+        }
+        
+        .visualizer-bar {
+            width: 4px;
+            background: linear-gradient(to top, var(--accent-cyan), var(--accent-violet));
+            border-radius: 2px;
+            animation: visualize 0.5s ease-in-out infinite alternate;
+        }
+        
+        @keyframes visualize {
+            from { height: 10px; }
+            to { height: var(--target-height, 40px); }
+        }
+        
+        .visualizer-bar:nth-child(1) { --target-height: 25px; animation-delay: 0s; }
+        .visualizer-bar:nth-child(2) { --target-height: 45px; animation-delay: 0.1s; }
+        .visualizer-bar:nth-child(3) { --target-height: 35px; animation-delay: 0.2s; }
+        .visualizer-bar:nth-child(4) { --target-height: 55px; animation-delay: 0.15s; }
+        .visualizer-bar:nth-child(5) { --target-height: 40px; animation-delay: 0.25s; }
+        .visualizer-bar:nth-child(6) { --target-height: 50px; animation-delay: 0.05s; }
+        .visualizer-bar:nth-child(7) { --target-height: 30px; animation-delay: 0.3s; }
+        
+        .audio-element {
+            display: none;
+        }
+        
+        .footer {
+            margin-top: 2rem;
+            text-align: center;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo-section">
+            <h1 class="logo">VOICE AGENT</h1>
+            <p class="subtitle">// WebRTC Interface</p>
+        </div>
+        
+        <div class="card">
+            <form id="connectForm">
+                <div class="input-group">
+                    <label>Your Name</label>
+                    <input type="text" id="participantName" placeholder="Enter your name" required>
+                </div>
+                
+                <div class="input-group">
+                    <label>Room (optional)</label>
+                    <input type="text" id="roomName" placeholder="Auto-generated if empty">
+                </div>
+                
+                <button type="submit" id="connectBtn" class="btn btn-primary">
+                    Connect to Agent
+                </button>
+            </form>
+            
+            <button id="disconnectBtn" class="btn btn-danger hidden">
+                Disconnect
+            </button>
+            
+            <div class="visualizer" id="visualizer">
+                <div class="visualizer-bar"></div>
+                <div class="visualizer-bar"></div>
+                <div class="visualizer-bar"></div>
+                <div class="visualizer-bar"></div>
+                <div class="visualizer-bar"></div>
+                <div class="visualizer-bar"></div>
+                <div class="visualizer-bar"></div>
+            </div>
+            
+            <div class="status-section">
+                <div class="status-indicator">
+                    <span class="status-dot disconnected" id="statusDot"></span>
+                    <span id="statusText">Disconnected</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Powered by LiveKit WebRTC</p>
+        </div>
+    </div>
+    
+    <div id="audioContainer"></div>
+    
+    <script>
+        const { Room, RoomEvent, Track, LocalParticipant, RemoteParticipant } = LivekitClient;
+        
+        let room = null;
+        let localAudioTrack = null;
+        
+        const connectForm = document.getElementById('connectForm');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const visualizer = document.getElementById('visualizer');
+        const audioContainer = document.getElementById('audioContainer');
+        
+        function updateStatus(status, text) {
+            statusDot.className = 'status-dot ' + status;
+            statusText.textContent = text;
+        }
+        
+        async function connect(roomName, participantName) {
+            try {
+                updateStatus('connecting', 'Connecting...');
+                connectBtn.disabled = true;
+                
+                // Request token from server
+                const response = await fetch('http://localhost:8000/api/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        room_name: roomName || null,
+                        participant_name: participantName
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Failed to get token');
+                }
+                
+                const data = await response.json();
+                
+                // Create and connect to room
+                room = new Room({
+                    adaptiveStream: true,
+                    dynacast: true,
+                    audioCaptureDefaults: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+                
+                // Set up event handlers
+                room.on(RoomEvent.Connected, () => {
+                    updateStatus('connected', 'Connected');
+                    connectForm.classList.add('hidden');
+                    disconnectBtn.classList.remove('hidden');
+                    visualizer.classList.add('active');
+                });
+                
+                room.on(RoomEvent.Disconnected, () => {
+                    updateStatus('disconnected', 'Disconnected');
+                    connectForm.classList.remove('hidden');
+                    disconnectBtn.classList.add('hidden');
+                    visualizer.classList.remove('active');
+                    connectBtn.disabled = false;
+                    audioContainer.innerHTML = '';
+                });
+                
+                room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+                    if (track.kind === Track.Kind.Audio) {
+                        const audioEl = track.attach();
+                        audioEl.classList.add('audio-element');
+                        audioContainer.appendChild(audioEl);
+                    }
+                });
+                
+                room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+                    track.detach().forEach(el => el.remove());
+                });
+                
+                await navigator.mediaDevices.getUserMedia({ audio: true });
+
+                // Connect
+                await room.connect(data.livekit_url, data.token);
+
+                // Publish mic
+                const audioTrack = await LivekitClient.createLocalAudioTrack();
+                await room.localParticipant.publishTrack(audioTrack);
+                
+            } catch (error) {
+                console.error('Connection error:', error);
+                updateStatus('disconnected', 'Error: ' + error.message);
+                connectBtn.disabled = false;
+            }
+        }
+        
+        async function disconnect() {
+            if (room) {
+                await room.disconnect();
+                room = null;
+            }
+        }
+        
+        connectForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const roomName = document.getElementById('roomName').value.trim();
+            const participantName = document.getElementById('participantName').value.trim();
+            
+            if (!participantName) {
+                alert('Please enter your name');
+                return;
+            }
+            
+            await connect(roomName, participantName);
+        });
+        
+        disconnectBtn.addEventListener('click', disconnect);
+        
+        // Generate random name suggestion
+        const adjectives = ['Swift', 'Bright', 'Cool', 'Clever', 'Bold'];
+        const nouns = ['Phoenix', 'Dragon', 'Falcon', 'Wolf', 'Tiger'];
+        const randomName = adjectives[Math.floor(Math.random() * adjectives.length)] + 
+                          nouns[Math.floor(Math.random() * nouns.length)] + 
+                          Math.floor(Math.random() * 100);
+        document.getElementById('participantName').placeholder = `e.g., ${randomName}`;
+    </script>
+</body>
+</html>

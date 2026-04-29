@@ -1,4 +1,20 @@
 services:
+  mongodb:
+    image: mongodb/mongodb-community-server:8.0-ubi8
+    restart: always
+    ports:
+      - "27018:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    restart: always
+    command: redis-server --appendonly yes
+    ports:
+      - "6380:6379"
+
+
   livekit:
     image: livekit/livekit-server:latest
     command: --config /etc/livekit.yaml
@@ -13,5 +29,32 @@ services:
         rtc:
           port_range_start: 50000
           port_range_end: 50050
+          
+        redis:
+          address: redis:6379
         keys:
           devkey: "secretsecretsecretsecretsecretsecret"
+    depends_on:
+      - redis
+
+  # The Recording Service (Egress)
+  egress:
+    image: livekit/egress:latest
+    restart: always
+    environment:
+      EGRESS_CONFIG_BODY: |
+        api_key: "devkey"
+        api_secret: "secretsecretsecretsecretsecretsecret"
+        ws_url: "ws://livekit:7880"
+        redis:
+          address: "redis:6379"
+        local_file_dir: "/out"
+    volumes:
+      - "./recordings:/out"
+    depends_on:
+      - redis
+      - livekit
+
+volumes:
+  mongodb_data:
+
